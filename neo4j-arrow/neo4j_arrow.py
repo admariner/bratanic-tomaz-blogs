@@ -99,7 +99,7 @@ class Neo4jArrow:
             'properties': properties,
             'filters': filters,
         }
-        params.update(extra)
+        params |= extra
         params_bytes = json.dumps(params).encode('utf8')
         return self._submit((_JOB_GDS_READ, params_bytes))
 
@@ -139,7 +139,7 @@ class Neo4jArrow:
             'properties': properties,
             'filters': filters,
         }
-        params.update(extra)
+        params |= extra
         params_bytes = json.dumps(params).encode('utf8')
         return self._submit((_JOB_GDS_READ, params_bytes))
 
@@ -153,16 +153,13 @@ class Neo4jArrow:
             'properties': [rel_property],
             'filters': [],
         }
-        params.update(extra)
+        params |= extra
         params_bytes = json.dumps(params).encode('utf8')
         return self._submit((_JOB_GDS_READ, params_bytes))
 
     def status(self, ticket):
         """Check job status for a ticket."""
-        if type(ticket) == pa.flight.Ticket:
-            buffer = ticket.serialize()
-        else:
-            buffer = ticket
+        buffer = ticket.serialize() if type(ticket) == pa.flight.Ticket else ticket
         action = (_JOB_STATUS, buffer)
         results = self._client.do_action(action, options=self._options)
         return JobStatus(next(results).body.to_pybytes().decode('utf8'))
@@ -186,10 +183,7 @@ class Neo4jArrow:
 
     def put_stream(self, ticket, data):
         """Write a stream to the server"""
-        if type(data) is not pa.lib.Table:
-            table = pa.table(data=data)
-        else:
-            table = data
+        table = pa.table(data=data) if type(data) is not pa.lib.Table else data
         try:
             descriptor = pa.flight.FlightDescriptor.for_command(ticket.serialize())
             writer, _ = self._client.do_put(descriptor, table.schema, options=self._options)
